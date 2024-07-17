@@ -87,11 +87,6 @@ in {
 
     relativeToAbsHome = path: concatPaths ["/home/${user}" path];
 
-    find = searchPaths: excludePaths: let
-      searchString = lib.concatMapStringsSep " " lib.escapeShellArg searchPaths;
-      excludeString = lib.concatMapStringsSep " -o " (path: "-path " + (lib.escapeShellArg path)) excludePaths;
-    in ''find ${searchString} \( ${excludeString} \) -prune -o \( -empty -type d -print \) -o \( -type f -print \) 2> /dev/null'';
-
     persisted-paths = {
       home = lib.flatten (map
         (
@@ -127,32 +122,21 @@ in {
         (lib.attrNames persistentStoragePaths.root));
     };
   in {
-    environment.sessionVariables = lib.mkIf cfg.xDisplayScale.enable {
-      STEAM_FORCE_DESKTOPUI_SCALING = cfg.xDisplayScale.value;
-      GDK_SCALE = cfg.xDisplayScale.value;
-    };
-
-    environment.shellAliases = lib.mkIf cfg.tools.ephemeral.enable {
-      # "find ephemeral directories" search root directory for unpersisted files / directories
-      fed = let
-        searchPaths = ["/"];
-        excludePaths = cfg.tools.ephemeral.exclude-paths.root ++ (map relativeToAbsHome cfg.tools.ephemeral.exclude-paths.home) ++ (map (n: n.path) (persisted-paths.root ++ persisted-paths.home));
-      in
-        find searchPaths excludePaths;
-
-      # "find ephemeral directories - home" only searches home directory
-      fedh = let
-        searchPaths = ["/home/${user}"];
-        excludePaths = (map relativeToAbsHome cfg.tools.ephemeral.exclude-paths.home) ++ (map (n: n.path) persisted-paths.home);
-      in
-        find searchPaths excludePaths;
-
-      # "find stray directories" find files in persistent storage that aren't being used
-      fsd = let
-        searchPaths = (lib.attrNames persistentStoragePaths.root) ++ (lib.attrNames persistentStoragePaths.home);
-        excludePaths = map (path: path.persistPath) (persisted-paths.root ++ persisted-paths.home);
-      in
-        find searchPaths excludePaths;
-    };
+    environment.sessionVariables = lib.mkMerge [
+      (lib.mkIf cfg.xDisplayScale.enable {
+        STEAM_FORCE_DESKTOPUI_SCALING = cfg.xDisplayScale.value;
+        GDK_SCALE = cfg.xDisplayScale.value;
+      })
+      (lib.mkIf cfg.tools.ephemeral.enable {
+        EPHT_SEARCH_ROOT = "/";
+        EPHT_SEARCH_HOME = "/home/${user}";
+        EPHT_SEARCH_P_ROOT = lib.concatStringsSep ":" (lib.attrNames persistentStoragePaths.root);
+        EPHT_SEARCH_P_HOME = lib.concatStringsSep ":" (lib.attrNames persistentStoragePaths.home);
+        EPHT_EXCLUDE_ROOT = lib.concatStringsSep ":" (cfg.tools.ephemeral.exclude-paths.root ++ (map (n: n.path) persisted-paths.root));
+        EPHT_EXCLUDE_HOME = lib.concatStringsSep ":" ((map relativeToAbsHome cfg.tools.ephemeral.exclude-paths.home) ++ (map (n: n.path) persisted-paths.home));
+        EPHT_EXCLUDE_P_ROOT = lib.concatStringsSep ":" (map (path: path.persistPath) persisted-paths.root);
+        EPHT_EXCLUDE_P_HOME = lib.concatStringsSep ":" (map (path: path.persistPath) persisted-paths.home);
+      })
+    ];
   };
 }
