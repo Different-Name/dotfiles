@@ -63,7 +63,7 @@ case "$command" in
             exclude_paths+=$EPHT_EXCLUDE_HOME
         fi
 
-        find_options="\( -type f -print \)"
+        find_options="-type f -print"
         ;;
     strays)
         while [[ $# -gt 0 ]]; do
@@ -137,7 +137,3 @@ done
 find_command+=" \) -prune -o $find_options"
 
 echo "$find_command"
-
-best way to get into cyber role
-what do need to do to put best foot forward linkedin, applying, qualifications
-talk about what been doing
